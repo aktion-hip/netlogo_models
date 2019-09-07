@@ -7,15 +7,15 @@ actors-own [
 undirected-link-breed [plays play]
 globals [
   r ;; radius of circle
-  rounds ;; number or rounds
   bgColor ;; color of background
+  exchangeRate ;; percentag of population to exchange after the tournament
+  remainingUnforgiving ;; remaining actors after user sets the actor percentags sliders
   ;; id's of strategies
   idCopyCat
   idAllCheat
   idAllCooperate
   idUnforgiving
   ;; end id's of strategies
-  exchangeRate ;; percentag of population to exchange after the tournament
 ]
 
 ;; setup
@@ -29,9 +29,9 @@ end
 
 to set-constants
   set r (max-pxcor - 1) ;; set radius of circle
-  set rounds 10 ;; set number or rounds
   set bgColor 48 ;; set color of background
   set exchangeRate 10 ;;% of population to exchange after the tournament
+  set remainingUnforgiving total ;; initialize remaining with total
   ;; id's of strategies
   set idCopyCat 1
   set idAllCheat 2
@@ -42,12 +42,21 @@ end
 
 to setup-actors
   let nr get-number percentage-tit-for-tat
-  if (nr > 0) [ create-copycat nr ]
+  if (nr > 0) [
+    create-copycat nr
+    set remainingUnforgiving (remainingUnforgiving - nr)
+  ]
   set nr get-number percentage-cheater
-  if (nr > 0) [ create-allcheat nr ]
+  if (nr > 0) [
+    create-allcheat nr
+    set remainingUnforgiving (remainingUnforgiving - nr)
+  ]
   set nr get-number percentage-all-cooperate
-  if (nr > 0) [ create-allcooperate nr ]
-  set nr get-number (100 - (percentage-cheater + percentage-tit-for-tat + percentage-all-cooperate))
+  if (nr > 0) [
+    create-allcooperate nr
+    set remainingUnforgiving (remainingUnforgiving - nr)
+  ]
+  set nr (get-number (100 - (percentage-cheater + percentage-tit-for-tat + percentage-all-cooperate)) + remainingUnforgiving)
   if (nr > 0) [ create-unforgiving nr ]
 
   let nr-of-actors (count actors)
@@ -86,7 +95,7 @@ to-report population-slider-feedback
   let percentage-sum (percentage-cheater + percentage-tit-for-tat + percentage-all-cooperate)
   ifelse percentage-sum > 100
   [ report "Invalid percentage input! Please adjust sliders so they sum up to 100." ]
-  [ report (word (100 - percentage-sum) "%") ]
+  [ report (word (remainingUnforgiving * 100 / total) "%") ]
 end
 
 ;; ==== play tournament ====
@@ -185,12 +194,12 @@ to-report get-yield [egoW2P otherW2P] ;; the game's yield
   ifelse egoW2P ;; ego cooperates
   [
     ifelse otherW2P
-    [report 2] ;; both cooperate
+    [report payout] ;; both cooperate
     [report -1] ;; other cheats
   ]
   [
     ifelse otherW2P
-    [report 3] ;; ego cheats
+    [report payout + 1] ;; ego cheats
     [report 0] ;; both cheat
   ]
 end
@@ -387,7 +396,7 @@ total
 total
 10
 200
-100.0
+25.0
 1
 1
 NIL
@@ -402,7 +411,7 @@ percentage-cheater
 percentage-cheater
 0
 100
-80.0
+5.0
 1
 1
 NIL
@@ -417,7 +426,7 @@ percentage-tit-for-tat
 percentage-tit-for-tat
 0
 100
-10.0
+5.0
 1
 1
 NIL
@@ -432,7 +441,7 @@ percentage-all-cooperate
 percentage-all-cooperate
 0
 100
-0.0
+90.0
 1
 1
 NIL
@@ -449,6 +458,36 @@ population-slider-feedback
 1
 11
 
+SLIDER
+9
+418
+181
+451
+rounds
+rounds
+0
+30
+10.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+376
+182
+409
+payout
+payout
+1
+5
+2.0
+1
+1
+NIL
+HORIZONTAL
+
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -460,7 +499,9 @@ population-slider-feedback
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+There are four strategies implemented: *tit for tat*, *all cheat*, *all cooperate* and *unforgiving*.  
+Configure the composition of the tournament by setting the slider values (percentages).  
+Additional configuration settings are the number of *rounds* each player plays (against all other players) in the tournament and the *payout* after a game.
 
 ## THINGS TO NOTICE
 
@@ -484,7 +525,7 @@ population-slider-feedback
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+Robert Axelrod (1984) "The Evolution of Cooperation" (https://en.wikipedia.org/wiki/The_Evolution_of_Cooperation)
 @#$#@#$#@
 default
 true
