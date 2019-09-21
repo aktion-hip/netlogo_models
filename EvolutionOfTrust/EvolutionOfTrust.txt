@@ -1,21 +1,20 @@
-breed [actors actor]
-actors-own [
+breed [t4taters t4tater] ;; tit for tat
+breed [cheaters cheater] ;; all cheat
+breed [cooperaters cooperater] ;; all cooperate
+breed [grumblers grumbler] ;; unforgiving
+turtles-own [
   willingnessToPay?
   yield
+  adjust-willingness-to-pay ;; anonymous command
   strategyId
 ]
 undirected-link-breed [plays play]
+
 globals [
   r ;; radius of circle
   bgColor ;; color of background
   exchangeRate ;; percentag of population to exchange after the tournament
   remainingUnforgiving ;; remaining actors after user sets the actor percentags sliders
-  ;; id's of strategies
-  idCopyCat
-  idAllCheat
-  idAllCooperate
-  idUnforgiving
-  ;; end id's of strategies
 ]
 
 ;; setup
@@ -32,57 +31,81 @@ to set-constants
   set bgColor 48 ;; set color of background
   set exchangeRate 10 ;;% of population to exchange after the tournament
   set remainingUnforgiving total ;; initialize remaining with total
-  ;; id's of strategies
-  set idCopyCat 1
-  set idAllCheat 2
-  set idAllCooperate 3
-  set idUnforgiving 4
-  ;; end id's of strategies
 end
 
 to setup-actors
+  ;; start: create the populations of the different actors
   let nr get-number percentage-tit-for-tat
   if (nr > 0) [
-    create-copycat nr
+    create-t4taters nr [
+      set shape "person"
+      set color lime
+      set willingnessToPay? true
+      set adjust-willingness-to-pay [ otherw2p -> do-w2p-adjustment otherw2p ]
+      set strategyId 1
+    ]
     set remainingUnforgiving (remainingUnforgiving - nr)
   ]
   set nr get-number percentage-cheater
   if (nr > 0) [
-    create-allcheat nr
+    create-cheaters nr [
+      set shape "person"
+      set color black
+      set willingnessToPay? false
+      set adjust-willingness-to-pay [ otherw2p -> do-w2p-adjustment false ]
+      set strategyId 2
+    ]
     set remainingUnforgiving (remainingUnforgiving - nr)
   ]
   set nr get-number percentage-all-cooperate
   if (nr > 0) [
-    create-allcooperate nr
+    create-cooperaters nr [
+      set shape "person"
+      set color pink
+      set willingnessToPay? true
+      set adjust-willingness-to-pay [ otherw2p -> do-w2p-adjustment true ]
+      set strategyId 3
+    ]
     set remainingUnforgiving (remainingUnforgiving - nr)
   ]
   set nr (get-number (100 - (percentage-cheater + percentage-tit-for-tat + percentage-all-cooperate)) + remainingUnforgiving)
-  if (nr > 0) [ create-unforgiving nr ]
+  if (nr > 0) [
+    create-grumblers nr [
+      set shape "person"
+      set color sky
+      set willingnessToPay? true
+      set adjust-willingness-to-pay [ otherw2p -> do-w2p-adjustment grumblers-adjustment otherw2p ]
+      set strategyId 4
+    ]
+  ]
+  ;; end: create the populations of the different actors
 
-  let nr-of-actors (count actors)
   let counter 0
   let step 360 / total
   repeat total [
-    ask actor counter [
+    ask turtle counter [
       place-actor counter step
     ]
     set counter counter + 1
   ]
 end
 
+to do-w2p-adjustment [new_w2p]
+  set willingnessToPay? new_w2p
+end
+
+to-report grumblers-adjustment [otherw2p]
+  ifelse willingnessToPay?
+  [ report otherw2p ]
+  [ report false ]
+end
+
 to-report get-number [percentage]
   report int (total / 100 * percentage)
 end
 
-to set-actor-all [idStrategy w2p actorColor]
-  set shape "person"
-  set strategyId idStrategy
-  set willingnessToPay? w2p
-  set color actorColor
-end
-
 to place-actor [i step]
-  ask actor i [
+  ask turtle i [
     setxy (r * cos (i * step)) (r * sin (i * step))
   ]
 end
@@ -109,13 +132,13 @@ to go
 end
 
 to-report check-winner
-  ifelse (count-population-of idCopyCat) = total
+  ifelse (count t4taters) = total
   [ report true ]
-  [ ifelse (count-population-of idAllCheat) = total
+  [ ifelse (count cheaters) = total
     [ report true ]
-    [ ifelse (count-population-of idAllCooperate) = total
+    [ ifelse (count cooperaters) = total
       [ report true ]
-      [ if (count-population-of idUnforgiving) = total
+      [ if (count grumblers) = total
         [ report true ]
       ]
     ]
@@ -123,12 +146,8 @@ to-report check-winner
   report false
 end
 
-to-report count-population-of [idStrategy]
-  report count actors with [strategyId = idStrategy]
-end
-
 to setup-tournament
-  ask actors [ create-plays-with other actors ]
+  ask turtles [ create-plays-with other turtles ]
   ask plays [ set color bgColor]
 end
 
@@ -137,42 +156,8 @@ to run-tournament
 end
 
 to do-play [actor1 actor2] ;; run the play between actor1 and actor2
-  init-willingness-to-pay actor1 actor2
   repeat rounds [
     play-round actor1 actor2
-  ]
-end
-
-to init-willingness-to-pay [actor1 actor2]
-  ask actor1 [
-    set willingnessToPay? get-initial-willingness-to-pay strategyId
-  ]
-  ask actor2 [
-    set willingnessToPay? get-initial-willingness-to-pay strategyId
-  ]
-end
-
-to-report get-initial-willingness-to-pay [idStrategy]
-  ifelse idStrategy = idCopyCat
-  [ report get-initial-w2p-copycat ]
-  [ ifelse idStrategy = idAllCheat
-    [ report get-initial-w2p-allcheat ]
-    [ ifelse idStrategy = idAllCooperate
-      [ report get-initial-w2p-allcooperate ]
-      [ report get-initial-w2p-unforgiving ]
-    ]
-  ]
-end
-
-to-report get-adjusted-willingness-to-pay [ego othersW2P]
-  ifelse strategyId = idCopyCat
-  [ report get-adjusted-w2p-copycat ego othersW2P ]
-  [ ifelse strategyId = idAllCheat
-    [ report get-adjusted-w2p-allcheat ego othersW2P ]
-    [ ifelse strategyId = idAllCooperate
-      [ report get-adjusted-w2p-allcooperate ego othersW2P ]
-      [ report get-adjusted-w2p-unforgiving ego othersW2P ]
-    ]
   ]
 end
 
@@ -181,12 +166,12 @@ to play-round [actor1 actor2] ;; actor1 and actor2 play a single round
   ask actor1 [
     let otherW2P ([willingnessToPay?] of actor2)
     set yield yield + get-yield willingnessToPay? otherW2P
-    set willingnessToPay? get-adjusted-willingness-to-pay actor1 otherW2P
+    (run adjust-willingness-to-pay otherW2P)
   ]
   ask actor2 [
     let otherW2P ([willingnessToPay?] of actor1)
     set yield yield + get-yield willingnessToPay? otherW2P
-    set willingnessToPay? get-adjusted-willingness-to-pay actor2 otherW2P
+    (run adjust-willingness-to-pay otherW2P)
   ]
 end
 
@@ -205,12 +190,12 @@ to-report get-yield [egoW2P otherW2P] ;; the game's yield
 end
 
 to adjust-population
-  let sorted-actors sort-by [ [a b] -> [yield] of a > [yield] of b ] actors
+  let sorted-actors sort-by [ [a b] -> [yield] of a > [yield] of b ] turtles
   show-interesting (item 0 sorted-actors) (item (total - 1) sorted-actors)
 
   let exchangeNr total / 100 * exchangeRate
   if exchangeNr < 3 [ set exchangeNr 3]
-  let last-pos (count actors)
+  let last-pos (count turtles)
   let best-range sublist sorted-actors 0 exchangeNr
   let worst-range sublist sorted-actors (last-pos - exchangeNr) last-pos
 
@@ -222,7 +207,7 @@ to adjust-population
 end
 
 to reset-yield
-  ask actors [
+  ask turtles [
     set yield 0
   ]
 end
@@ -234,74 +219,14 @@ to show-interesting [best worst]
 end
 
 to convert [looser winner]
+  ask winner [
+    hatch 1 [
+      set xcor [xcor] of looser
+      set ycor [ycor] of looser
+    ]
+  ]
   ask looser [
-    set strategyId [strategyId] of winner
-    set willingnessToPay? get-initial-willingness-to-pay [strategyId] of winner
-    set color [color] of winner
-  ]
-end
-
-;; === strategies: adjust willingness to pay
-
-to-report get-adjusted-w2p-copycat [ego othersW2P]
-  report othersW2P ;; reflects the others willingness to pay
-end
-
-to-report get-adjusted-w2p-allcheat [ego othersW2P]
-  report false ;; allways false
-end
-
-to-report get-adjusted-w2p-allcooperate [ego othersW2P]
-  report true ;; allways true
-end
-
-to-report get-adjusted-w2p-unforgiving [ego othersW2P]
-  ifelse [willingnessToPay?] of ego
-  [ report othersW2P ]
-  [ report false ] ;; if false once, stick to false
-end
-
-;; === strategies: get inital willingness to pay
-
-to-report get-initial-w2p-copycat
-  report true
-end
-
-to-report get-initial-w2p-allcheat
-  report false
-end
-
-to-report get-initial-w2p-allcooperate
-  report true
-end
-
-to-report get-initial-w2p-unforgiving
-  report true
-end
-
-;; --- create n actors
-
-to create-copycat [number]
-  create-actors number [
-    set-actor-all idCopyCat true lime
-  ]
-end
-
-to create-allcheat [number]
-  create-actors number [
-    set-actor-all idAllCheat false black
-  ]
-end
-
-to create-allcooperate [number]
-  create-actors number [
-    set-actor-all idAllCooperate true pink
-  ]
-end
-
-to create-unforgiving [number]
-  create-actors number [
-    set-actor-all idUnforgiving true sky
+    die
   ]
 end
 @#$#@#$#@
@@ -382,10 +307,10 @@ true
 true
 "" ""
 PENS
-"cheat" 1.0 0 -16777216 true "" "plot count actors with [strategyId = idAllCheat]"
-"tit for tat" 1.0 0 -13840069 true "" "plot count actors with [strategyId = idCopyCat]"
-"all cooperate" 1.0 0 -2064490 true "" "plot count actors with [strategyId = idAllCooperate]"
-"Unforgiving" 1.0 0 -13791810 true "" "plot count actors with [strategyId = idUnforgiving]"
+"cheat" 1.0 0 -16777216 true "" "plot count cheaters"
+"tit for tat" 1.0 0 -13840069 true "" "plot count t4taters"
+"all cooperate" 1.0 0 -2064490 true "" "plot count cooperaters"
+"Unforgiving" 1.0 0 -13791810 true "" "plot count grumblers"
 
 SLIDER
 12
@@ -396,7 +321,7 @@ total
 total
 10
 200
-25.0
+50.0
 1
 1
 NIL
@@ -411,7 +336,7 @@ percentage-cheater
 percentage-cheater
 0
 100
-5.0
+75.0
 1
 1
 NIL
@@ -426,7 +351,7 @@ percentage-tit-for-tat
 percentage-tit-for-tat
 0
 100
-5.0
+20.0
 1
 1
 NIL
@@ -441,7 +366,7 @@ percentage-all-cooperate
 percentage-all-cooperate
 0
 100
-90.0
+0.0
 1
 1
 NIL
